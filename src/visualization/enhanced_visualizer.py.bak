@@ -1,0 +1,50 @@
+# ... existing code ...
+                    # Direct force-highlighting of all store operations - runs immediately
+                    (function() {{
+                        // Select all lines in the target panel
+                        const targetLines = document.getElementById('{viz_id}_target').querySelectorAll('.line');
+                        
+                        // Loop through all target lines
+                        targetLines.forEach(line => {{
+                            const content = line.querySelector('.line-content').textContent;
+                            
+                            // Check for st.global and other store operations
+                            if (content.includes('st.global.') || 
+                                content.includes('st.global ') ||
+                                content.match(/st\\.[a-z]+\\.[a-z0-9]+/)) {{
+                                
+                                // Apply styling
+                                line.classList.add('store-operation');
+                                
+                                // Apply direct DOM styling with !important
+                                line.style.cssText += `
+                                    border-left: 6px solid #FF0000 !important;
+                                    border-right: 2px solid #FF0000 !important; 
+                                    background-color: rgba(255, 0, 0, 0.2) !important;
+                                    font-weight: 700 !important;
+                                    font-size: 15px !important;
+                                    text-shadow: 0px 0px 1px rgba(255,255,255,0.3) !important;
+                                `;
+                                
+                                // Also find Java lines with .set() operations
+                                const javaLines = document.getElementById('{viz_id}_java').querySelectorAll('.line');
+                                javaLines.forEach(javaLine => {{
+                                    const javaContent = javaLine.querySelector('.line-content').textContent;
+                                    if (javaContent.includes('.set(') || 
+                                        javaContent.includes('= ') && 
+                                        javaContent.includes('refPos') || 
+                                        javaContent.includes('refVel')) {{
+                                        
+                                        javaLine.classList.add('java-store-operation');
+                                        javaLine.style.cssText += `
+                                            border-left: 6px solid #FF0000 !important;
+                                            background-color: rgba(255, 0, 0, 0.1) !important;
+                                            font-weight: 600 !important;
+                                        `;
+                                    }}
+                                }});
+                            }}
+                        }});
+                    }})();
+                    """
+# ... existing code ...

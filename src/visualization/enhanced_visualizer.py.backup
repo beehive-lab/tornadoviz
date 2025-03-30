@@ -1,0 +1,1154 @@
+import streamlit as st
+from src.visualization.react_visualizer import ReactVisualizer, CodeBlock, CodeMapping, LineMapping
+from src.visualization.pattern_analyzer import GPUPatternAnalyzer, LoopPatternMapper, ArrayMappingAnalyzer
+import json
+import re
+import pandas as pd
+import plotly.express as px
+from typing import List, Dict
+
+class EnhancedVisualizer(ReactVisualizer):
+    """Enhanced version of ReactVisualizer with better highlighting and visibility"""
+    
+    def _create_visualization_html(self, java_code: str, target_code: str, 
+                                target_title: str, semantic_mappings: List[Dict]) -> str:
+        """Create HTML for the visualization with enhanced styling for better visibility"""
+        viz_id = f"viz_{hash(java_code + target_code) % 10000}"
+        
+        # Add syntax highlighting for Java code
+        java_highlighted = self._highlight_java_code(java_code)
+        target_highlighted = self._highlight_target_code(target_code, self.target_type)
+        
+        # Process mappings to a format suitable for JavaScript
+        js_mappings = []
+        for mapping in semantic_mappings:
+            js_mappings.append({
+                'source_lines': mapping.get('source_lines', []),
+                'target_lines': mapping.get('target_lines', []),
+                'type': mapping.get('type', 'unknown'),
+                'subtype': mapping.get('subtype', ''),
+                'description': mapping.get('description', 'No description available')
+            })
+        
+        html = f"""
+        <div id="{viz_id}" class="code-viz">
+            <style>
+                .code-viz {{
+                    display: flex;
+                    flex-direction: column;
+                    height: 100%;
+                    font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+                    font-size: 14px;
+                    line-height: 1.6;
+                    background: #1e1e1e;
+                    color: #e0e0e0;
+                }}
+                .code-panels {{
+                    display: flex;
+                    gap: 1.5rem;
+                    flex: 1;
+                    min-height: 400px;
+                    height: calc(100vh - 300px);
+                    max-height: 800px;
+                    padding: 1rem;
+                    overflow: hidden;
+                    position: relative;
+                }}
+                .code-panel {{
+                    flex: 1;
+                    display: flex;
+                    flex-direction: column;
+                    border: 1px solid #3c3c3c;
+                    border-radius: 8px;
+                    background: #252526;
+                    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                    min-width: 0;
+                    position: relative;
+                    z-index: 1;
+                }}
+                .panel-header {{
+                    padding: 1rem;
+                    background: #323233;
+                    border-bottom: 1px solid #3c3c3c;
+                    border-top-left-radius: 8px;
+                    border-top-right-radius: 8px;
+                    font-size: 16px;
+                    font-weight: 600;
+                    color: #ffffff;
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    position: sticky;
+                    top: 0;
+                    z-index: 10;
+                }}
+                .code-content {{
+                    flex: 1;
+                    overflow: auto;
+                    padding: 1rem;
+                    font-size: 14px;
+                    line-height: 1.6;
+                    color: #e0e0e0;
+                }}
+                .line {{
+                    display: flex;
+                    padding: 2px 8px;
+                    border-radius: 4px;
+                    margin: 1px 0;
+                    transition: all 0.2s ease;
+                    white-space: pre;
+                    width: 100%;
+                    position: relative;
+                }}
+                .line:hover {{
+                    background: rgba(86, 156, 214, 0.15);
+                    cursor: pointer;
+                }}
+                .line-number {{
+                    color: #858585;
+                    margin-right: 1.5rem;
+                    user-select: none;
+                    min-width: 3em;
+                    text-align: right;
+                }}
+                .line-content {{
+                    flex: 1;
+                    white-space: pre;
+                    font-family: inherit;
+                    overflow-x: auto;
+                }}
+                .line.highlighted {{
+                    background: rgba(255, 255, 150, 0.2);
+                    border-left: 3px solid #FFD700;
+                    font-weight: 500;
+                    color: #ffffff;
+                }}
+                .line.highlighted-memory_access {{
+                    background: rgba(255, 223, 0, 0.3);
+                    border-left: 3px solid #FFD700;
+                    color: #ffffff;
+                }}
+                .line.highlighted-array_access {{
+                    background: rgba(255, 223, 0, 0.3);
+                    border-left: 3px solid #FFD700;
+                    color: #ffffff;
+                }}
+                .line.highlighted-array_mapping {{
+                    background: rgba(255, 165, 0, 0.3);
+                    border-left: 3px solid #FFA500;
+                    color: #ffffff;
+                }}
+                .line.highlighted-math_operation {{
+                    background: rgba(0, 191, 255, 0.3);
+                    border-left: 3px solid #00BFFF;
+                    color: #ffffff;
+                }}
+                .line.highlighted-thread_mapping {{
+                    background: rgba(152, 251, 152, 0.3);
+                    border-left: 3px solid #98FB98;
+                    color: #ffffff;
+                }}
+                .mapping-info {{
+                    margin: 1rem;
+                    padding: 1.5rem;
+                    background: #323233;
+                    border-radius: 8px;
+                    color: #e0e0e0;
+                    border: 1px solid #3c3c3c;
+                    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                    max-height: 300px;
+                    overflow-y: auto;
+                    resize: vertical;
+                }}
+                .mapping-info h3 {{
+                    margin-top: 0;
+                    font-size: 18px;
+                    color: #ffffff;
+                    font-weight: 600;
+                    margin-bottom: 1rem;
+                    position: sticky;
+                    top: 0;
+                    background: #323233;
+                    padding: 0.5rem 0;
+                    z-index: 1;
+                }}
+                .mapping-info div {{
+                    margin: 8px 0;
+                    padding: 12px;
+                    background: #252526;
+                    border-radius: 6px;
+                    border-left: 3px solid #569cd6;
+                    transition: transform 0.2s;
+                }}
+                .mapping-info div:hover {{
+                    transform: translateX(4px);
+                    background: #2d2d2d;
+                }}
+                .mapping-info strong {{
+                    color: #569cd6;
+                    font-weight: 600;
+                }}
+                .mapping-info hr {{
+                    border: none;
+                    border-top: 1px solid #3c3c3c;
+                    margin: 12px 0;
+                }}
+                /* Enhanced syntax highlighting with better contrast for dark backgrounds */
+                .keyword {{ color: #569cd6; font-weight: 600; }}  /* Bright blue */
+                .string {{ color: #ce9178; }}  /* Orange-red */
+                .comment {{ color: #6a9955; font-style: italic; }}  /* Green */
+                .type {{ color: #4ec9b0; font-weight: 500; }}  /* Teal */
+                .number {{ color: #b5cea8; }}  /* Light green */
+                .function {{ color: #dcdcaa; }}  /* Light yellow */
+                .operator {{ color: #d4d4d4; }}  /* Light gray */
+                .variable {{ color: #9cdcfe; }}  /* Light blue */
+                .annotation {{ color: #c586c0; font-style: italic; }}  /* Purple */
+
+                /* Scrollbar styling */
+                .code-content::-webkit-scrollbar,
+                .mapping-info::-webkit-scrollbar {{
+                    width: 12px;
+                    height: 12px;
+                }}
+                .code-content::-webkit-scrollbar-track,
+                .mapping-info::-webkit-scrollbar-track {{
+                    background: #1e1e1e;
+                    border-radius: 6px;
+                }}
+                .code-content::-webkit-scrollbar-thumb,
+                .mapping-info::-webkit-scrollbar-thumb {{
+                    background: #424242;
+                    border-radius: 6px;
+                    border: 3px solid #1e1e1e;
+                }}
+                .code-content::-webkit-scrollbar-thumb:hover,
+                .mapping-info::-webkit-scrollbar-thumb:hover {{
+                    background: #4f4f4f;
+                }}
+                
+                /* Performance indicators */
+                .perf-indicator {{
+                    display: inline-block;
+                    width: 12px;
+                    height: 12px;
+                    border-radius: 50%;
+                    margin-left: 8px;
+                    cursor: help;
+                    position: absolute;
+                    right: 8px;
+                    top: 50%;
+                    transform: translateY(-50%);
+                }}
+                .memory-warning {{
+                    background-color: #e74c3c;
+                }}
+                .divergence-warning {{
+                    background-color: #f39c12;
+                }}
+                .compute-intensive {{
+                    background-color: #3498db;
+                }}
+
+                /* Array highlight styles */
+                .array-decl {{
+                    font-weight: 600;
+                    padding: 1px 3px;
+                    border-radius: 3px;
+                    background: rgba(255, 165, 0, 0.2);
+                    border: 1px dashed #FFA500;
+                }}
+                
+                /* Memory type indicators */
+                .mem-indicator {{
+                    display: inline-block;
+                    width: 10px;
+                    height: 10px;
+                    border-radius: 50%;
+                    margin-left: 5px;
+                    margin-right: 3px;
+                }}
+                .mem-local {{
+                    background-color: #FFA500;  /* Orange for local */
+                }}
+                .mem-shared {{
+                    background-color: #4CAF50;  /* Green for shared */
+                }}
+                .mem-global {{
+                    background-color: #9C27B0;  /* Purple for global */
+                }}
+            </style>
+            
+            <div class="code-panels">
+                <div class="code-panel">
+                    <div class="panel-header">Java Source</div>
+                    <div class="code-content" id="{viz_id}_java">
+                        {java_highlighted}
+                    </div>
+                </div>
+                
+                <div class="code-panel">
+                    <div class="panel-header">{target_title}</div>
+                    <div class="code-content" id="{viz_id}_target">
+                        {target_highlighted}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mapping-info">
+                <h3>Mapping Information</h3>
+                <div id="{viz_id}_info">Click on a line of code to see mapping details</div>
+            </div>
+            
+            <script>
+                (function() {{
+                    const mappings = {json.dumps(js_mappings)};
+                    const javaPanel = document.getElementById('{viz_id}_java');
+                    const targetPanel = document.getElementById('{viz_id}_target');
+                    const infoPanel = document.getElementById('{viz_id}_info');
+                    
+                    // Add event listeners for Java lines
+                    javaPanel.querySelectorAll('.line').forEach(line => {{
+                        line.addEventListener('click', () => {{
+                            const lineNum = parseInt(line.getAttribute('data-line'));
+                            const relatedMappings = mappings.filter(m => 
+                                m.source_lines.includes(lineNum)
+                            );
+                            
+                            if (relatedMappings.length > 0) {{
+                                // Clear previous highlights
+                                document.querySelectorAll('.line').forEach(l => {{
+                                    l.classList.remove('highlighted');
+                                    l.classList.remove('highlighted-memory_access');
+                                    l.classList.remove('highlighted-array_access');
+                                    l.classList.remove('highlighted-array_mapping');
+                                    l.classList.remove('highlighted-math_operation');
+                                    l.classList.remove('highlighted-thread_mapping');
+                                }});
+                                
+                                // Highlight this line
+                                line.classList.add('highlighted');
+                                
+                                // Highlight target lines and show mapping info
+                                const mappingInfo = [];
+                                relatedMappings.forEach(mapping => {{
+                                    const type = mapping.type.toLowerCase().replace(' ', '_');
+                                    
+                                    mapping.target_lines.forEach(targetLineNum => {{
+                                        const targetLine = targetPanel.querySelector(`[data-line="${{targetLineNum}}"]`);
+                                        if (targetLine) {{
+                                            // Apply specific highlighting based on mapping type
+                                            if (type === 'array_mapping') {{
+                                                targetLine.classList.add('highlighted-array_mapping');
+                                            }} else {{
+                                                targetLine.classList.add(`highlighted-${{type}}`);
+                                            }}
+                                            targetLine.scrollIntoView({{ behavior: 'smooth', block: 'center' }});
+                                        }}
+                                    }});
+                                    
+                                    // Show detailed mapping info with special formatting for array mappings
+                                    if (mapping.type === 'Array Mapping') {{
+                                        mappingInfo.push(`
+                                            <div>
+                                                <strong>${{mapping.type}}</strong>: <span class="array-decl">${{mapping.description}}</span><br>
+                                                Java line ${{mapping.source_lines.join(', ')}} → {self.target_type.upper()} line ${{mapping.target_lines.join(', ')}}
+                                                <div style="margin-top: 8px;">
+                                                    <span class="mem-indicator mem-${{mapping.subtype.split('_to_')[1]}}"></span>
+                                                    Memory space: <strong>${{mapping.subtype.split('_to_')[1]}}</strong>
+                                                </div>
+                                            </div>
+                                        `);
+                                    }} else {{
+                                        mappingInfo.push(`
+                                            <div>
+                                                <strong>${{mapping.type}}</strong>: ${{mapping.description}}<br>
+                                                Java line ${{mapping.source_lines.join(', ')}} → {self.target_type.upper()} line ${{mapping.target_lines.join(', ')}}
+                                            </div>
+                                        `);
+                                    }}
+                                }});
+                                
+                                // Show mapping info
+                                infoPanel.innerHTML = mappingInfo.join('');
+                            }}
+                        }});
+                    }});
+                    
+                    // Add event listeners for target lines - similar updates as above but reversed
+                    targetPanel.querySelectorAll('.line').forEach(line => {{
+                        line.addEventListener('click', () => {{
+                            const lineNum = parseInt(line.getAttribute('data-line'));
+                            const relatedMappings = mappings.filter(m => 
+                                m.target_lines.includes(lineNum)
+                            );
+                            
+                            if (relatedMappings.length > 0) {{
+                                // Clear previous highlights
+                                document.querySelectorAll('.line').forEach(l => {{
+                                    l.classList.remove('highlighted');
+                                    l.classList.remove('highlighted-memory_access');
+                                    l.classList.remove('highlighted-array_access');
+                                    l.classList.remove('highlighted-array_mapping');
+                                    l.classList.remove('highlighted-math_operation');
+                                    l.classList.remove('highlighted-thread_mapping');
+                                }});
+                                
+                                // Highlight this line
+                                line.classList.add('highlighted');
+                                
+                                // Highlight Java lines and show mapping info
+                                const mappingInfo = [];
+                                relatedMappings.forEach(mapping => {{
+                                    const type = mapping.type.toLowerCase().replace(' ', '_');
+                                    
+                                    mapping.source_lines.forEach(sourceLineNum => {{
+                                        const javaLine = javaPanel.querySelector(`[data-line="${{sourceLineNum}}"]`);
+                                        if (javaLine) {{
+                                            // Apply specific highlighting based on mapping type
+                                            if (type === 'array_mapping') {{
+                                                javaLine.classList.add('highlighted-array_mapping');
+                                            }} else {{
+                                                javaLine.classList.add(`highlighted-${{type}}`);
+                                            }}
+                                            javaLine.scrollIntoView({{ behavior: 'smooth', block: 'center' }});
+                                        }}
+                                    }});
+                                    
+                                    // Show detailed mapping info with special formatting for array mappings
+                                    if (mapping.type === 'Array Mapping') {{
+                                        mappingInfo.push(`
+                                            <div>
+                                                <strong>${{mapping.type}}</strong>: <span class="array-decl">${{mapping.description}}</span><br>
+                                                {self.target_type.upper()} line ${{mapping.target_lines.join(', ')}} → Java line ${{mapping.source_lines.join(', ')}}
+                                                <div style="margin-top: 8px;">
+                                                    <span class="mem-indicator mem-${{mapping.subtype.split('_to_')[1]}}"></span>
+                                                    Memory space: <strong>${{mapping.subtype.split('_to_')[1]}}</strong>
+                                                </div>
+                                            </div>
+                                        `);
+                                    }} else {{
+                                        mappingInfo.push(`
+                                            <div>
+                                                <strong>${{mapping.type}}</strong>: ${{mapping.description}}<br>
+                                                {self.target_type.upper()} line ${{mapping.target_lines.join(', ')}} → Java line ${{mapping.source_lines.join(', ')}}
+                                            </div>
+                                        `);
+                                    }}
+                                }});
+                                
+                                // Show mapping info
+                                infoPanel.innerHTML = mappingInfo.join('');
+                            }}
+                        }});
+                    }});
+                    
+                    // Add performance indicators
+                    function highlightPerformanceHotspots() {{
+                        const targetPanel = document.getElementById('{viz_id}_target');
+                        const lines = targetPanel.querySelectorAll('.line');
+                        
+                        lines.forEach(line => {{
+                            const lineContent = line.querySelector('.line-content').textContent;
+                            
+                            // Memory access patterns
+                            if (/ld[.]global|st[.]global|__global/.test(lineContent)) {{
+                                if (!/\[%tid[.]x\]|\[get_global_id\(0\)\]/.test(lineContent)) {{
+                                    addIndicator(line, 'memory-warning', 'Potential uncoalesced memory access');
+                                }}
+                            }}
+                            
+                            // Thread divergence
+                            if (/setp[.]|@!|if\s*\(/.test(lineContent) && /%tid|get_global_id/.test(lineContent)) {{
+                                addIndicator(line, 'divergence-warning', 'Potential thread divergence');
+                            }}
+                            
+                            // Arithmetic intensity
+                            if (/mul[.]|div[.]|mad[.]|fma|sin[.]|cos[.]/.test(lineContent)) {{
+                                const matchCount = (lineContent.match(/mul[.]|div[.]|mad[.]|fma|sin[.]|cos[.]/g) || []).length;
+                                if (matchCount > 2) {{
+                                    addIndicator(line, 'compute-intensive', 'Compute-intensive operation');
+                                }}
+                            }}
+                                addIndicator(line, 'loop-indicator', 'Loop control structure');
+                            }}
+                        }});
+                    }}
+
+                    function addIndicator(lineElement, className, tooltip) {{
+                        const indicator = document.createElement('span');
+                        indicator.className = `perf-indicator ${className}`;
+                        indicator.setAttribute('title', tooltip);
+                        lineElement.appendChild(indicator);
+                    }}
+                    
+                    // Add click handlers to enhance array and loop interaction
+                    function enhanceInteractiveMapping() {{
+                        // Find all local array declarations in Java
+                        const javaArrays = javaPanel.querySelectorAll('.line:contains("float[]"), .line:contains("int[]"), .line:contains("double[]"), .line:contains("new")');
+                        javaArrays.forEach(line => {{
+                            const lineContent = line.querySelector('.line-content').textContent;
+                            if (lineContent.match(/\w+\[\s*\]\s*\w+\s*=\s*new\s+\w+\s*\[\s*\d+\s*\]/)) {{
+                                line.classList.add('array-declaration');
+                                line.setAttribute('data-mapping-type', 'array');
+                            }}
+                        }});
+                        
+                        // Find all local array declarations in PTX/OpenCL
+                        const targetArrays = targetPanel.querySelectorAll('.line:contains(".local"), .line:contains("__local")');
+                        targetArrays.forEach(line => {{
+                            const lineContent = line.querySelector('.line-content').textContent;
+                            if (lineContent.match(/\.local\s+\.\w+\s+\w+\[\d+\]/) || 
+                                lineContent.match(/__local\s+\w+\s+\w+\s*\[\s*\d+\s*\]/)) {{
+                                line.classList.add('array-declaration');
+                                line.setAttribute('data-mapping-type', 'array');
+                            }}
+                        }});
+                        
+                        // Find all loop structures in Java
+                        const javaLoops = javaPanel.querySelectorAll('.line:contains("for"), .line:contains("while"), .line:contains("do")');
+                        javaLoops.forEach(line => {{
+                            const lineContent = line.querySelector('.line-content').textContent;
+                            if (lineContent.match(/for\\s*\\(/) || lineContent.match(/while\\s*\\(/) || lineContent.match(/do\\s*\\{{/)) {{
+                                line.classList.add('loop-structure');
+                                line.setAttribute('data-mapping-type', 'loop');
+                            }}
+                        }});
+                        
+                        // Find all loop structures in PTX/OpenCL
+                        const targetLoops = targetPanel.querySelectorAll('.line:contains("bra"), .line:contains("setp"), .line:contains("@")');
+                        targetLoops.forEach(line => {{
+                            const lineContent = line.querySelector('.line-content').textContent;
+                            if (lineContent.match(/setp\./) || lineContent.match(/@!%p\d+\s+bra/) || 
+                                lineContent.match(/bra\s+[A-Z0-9_]+/)) {{
+                                line.classList.add('loop-structure');
+                                line.setAttribute('data-mapping-type', 'loop');
+                            }}
+                        }});
+                    }}
+                    
+                    // Function to make lines containing specific elements more clickable
+                    function makeElementsClickable() {{
+                        // Add click handler for array declarations
+                        document.querySelectorAll('.array-declaration').forEach(line => {{
+                            line.addEventListener('click', (e) => {{
+                                // Add special handling for array declarations
+                                const lineNum = parseInt(line.getAttribute('data-line'));
+                                const mappingType = line.getAttribute('data-mapping-type');
+                                
+                                // Find all related array mappings
+                                const relatedMappings = mappings.filter(m => 
+                                    (m.type === 'Array Mapping' || m.subtype === 'local_to_local') && 
+                                    (
+                                        (line.closest(`#${viz_id}_java`) && m.source_lines.includes(lineNum)) ||
+                                        (line.closest(`#${viz_id}_target`) && m.target_lines.includes(lineNum))
+                                    )
+                                );
+                                
+                                if (relatedMappings.length > 0) {{
+                                    // Highlight the specific array mapping
+                                    highlightArrayMapping(relatedMappings[0], line);
+                                    e.stopPropagation(); // Prevent default click handler
+                                }}
+                            }});
+                        }});
+                        
+                        // Add click handler for loop structures
+                        document.querySelectorAll('.loop-structure').forEach(line => {{
+                            line.addEventListener('click', (e) => {{
+                                // Add special handling for loop structures
+                                const lineNum = parseInt(line.getAttribute('data-line'));
+                                const mappingType = line.getAttribute('data-mapping-type');
+                                
+                                // Find all related loop mappings
+                                const relatedMappings = mappings.filter(m => 
+                                    m.type === 'Loop Mapping' && 
+                                    (
+                                        (line.closest(`#${viz_id}_java`) && m.source_lines.includes(lineNum)) ||
+                                        (line.closest(`#${viz_id}_target`) && m.target_lines.includes(lineNum))
+                                    )
+                                );
+                                
+                                if (relatedMappings.length > 0) {{
+                                    // Highlight the specific loop mapping
+                                    highlightLoopMapping(relatedMappings[0], line);
+                                    e.stopPropagation(); // Prevent default click handler
+                                }}
+                            }});
+                        }});
+                    }}
+                    
+                    // Function to highlight array mappings
+                    function highlightArrayMapping(mapping, clickedLine) {{
+                        // Clear previous highlights
+                        document.querySelectorAll('.line').forEach(l => {{
+                            l.classList.remove('highlighted');
+                            l.classList.remove('highlighted-memory_access');
+                            l.classList.remove('highlighted-array_access');
+                            l.classList.remove('highlighted-array_mapping');
+                            l.classList.remove('highlighted-math_operation');
+                            l.classList.remove('highlighted-thread_mapping');
+                        }});
+                        
+                        // Highlight clicked line
+                        clickedLine.classList.add('highlighted-array_mapping');
+                        
+                        // Determine if we clicked in Java or target panel
+                        const isJava = clickedLine.closest(`#${viz_id}_java`) !== null;
+                        
+                        if (isJava) {{
+                            // Highlight corresponding target lines
+                            mapping.target_lines.forEach(targetLineNum => {{
+                                const targetLine = targetPanel.querySelector(`[data-line="${targetLineNum}"]`);
+                                if (targetLine) {{
+                                    targetLine.classList.add('highlighted-array_mapping');
+                                    targetLine.scrollIntoView({{ behavior: 'smooth', block: 'center' }});
+                                }}
+                            }});
+                        }} else {{
+                            // Highlight corresponding Java lines
+                            mapping.source_lines.forEach(sourceLineNum => {{
+                                const javaLine = javaPanel.querySelector(`[data-line="${sourceLineNum}"]`);
+                                if (javaLine) {{
+                                    javaLine.classList.add('highlighted-array_mapping');
+                                    javaLine.scrollIntoView({{ behavior: 'smooth', block: 'center' }});
+                                }}
+                            }});
+                        }}
+                        
+                        // Display detailed array mapping information
+                        let memorySpace = "";
+                        if (mapping.subtype && mapping.subtype.includes('_to_')) {{
+                            memorySpace = mapping.subtype.split('_to_')[1];
+                        }}
+                        
+                        // Prepare target type name
+                        const targetTypeName = '{0}';
+                        
+                        const mappingInfo = `
+                            <div>
+                                <strong>${{mapping.type}}</strong>: <span class="array-decl">${{mapping.description}}</span><br>
+                                ${{isJava ? 'Java' : targetTypeName}} line ${{isJava ? mapping.source_lines.join(', ') : mapping.target_lines.join(', ')}} 
+                                → ${{isJava ? targetTypeName : 'Java'}} line ${{isJava ? mapping.target_lines.join(', ') : mapping.source_lines.join(', ')}}
+                                ${{memorySpace ? `
+                                <div style="margin-top: 8px;">
+                                    <span class="mem-indicator mem-${{memorySpace}}"></span>
+                                    Memory space: <strong>${{memorySpace}}</strong>
+                                </div>
+                                ` : ''}}
+                            </div>
+                        `;
+                        
+                        // Show mapping info
+                        infoPanel.innerHTML = mappingInfo;
+                    }}
+                    
+                    // Function to highlight loop mappings
+                    function highlightLoopMapping(mapping, clickedLine) {{
+                        // Clear previous highlights
+                        document.querySelectorAll('.line').forEach(l => {{
+                            l.classList.remove('highlighted');
+                            l.classList.remove('highlighted-memory_access');
+                            l.classList.remove('highlighted-array_access');
+                            l.classList.remove('highlighted-array_mapping');
+                            l.classList.remove('highlighted-math_operation');
+                            l.classList.remove('highlighted-thread_mapping');
+                        }});
+                        
+                        // Add special loop highlight class
+                        document.querySelectorAll('.line').forEach(l => {{
+                            l.classList.remove('highlighted-loop');
+                        }});
+                        
+                        // Determine if we clicked in Java or target panel
+                        const isJava = clickedLine.closest(`#${viz_id}_java`) !== null;
+                        
+                        if (isJava) {{
+                            // Highlight all lines in the loop body in Java
+                            mapping.source_lines.forEach(lineNum => {{
+                                const javaLine = javaPanel.querySelector(`[data-line="${lineNum}"]`);
+                                if (javaLine) {{
+                                    javaLine.classList.add('highlighted-loop');
+                                }}
+                            }});
+                            
+                            // Highlight target lines
+                            mapping.target_lines.forEach(lineNum => {{
+                                const targetLine = targetPanel.querySelector(`[data-line="${lineNum}"]`);
+                                if (targetLine) {{
+                                    targetLine.classList.add('highlighted-loop');
+                                }}
+                            }});
+                            
+                            // Scroll to the first target line
+                            if (mapping.target_lines.length > 0) {{
+                                const firstTargetLine = targetPanel.querySelector(`[data-line="${mapping.target_lines[0]}"]`);
+                                if (firstTargetLine) {{
+                                    firstTargetLine.scrollIntoView({{ behavior: 'smooth', block: 'center' }});
+                                }}
+                            }}
+                        }} else {{
+                            // Highlight all lines in the loop body in target
+                            mapping.target_lines.forEach(lineNum => {{
+                                const targetLine = targetPanel.querySelector(`[data-line="${lineNum}"]`);
+                                if (targetLine) {{
+                                    targetLine.classList.add('highlighted-loop');
+                                }}
+                            }});
+                            
+                            // Highlight Java lines
+                            mapping.source_lines.forEach(lineNum => {{
+                                const javaLine = javaPanel.querySelector(`[data-line="${lineNum}"]`);
+                                if (javaLine) {{
+                                    javaLine.classList.add('highlighted-loop');
+                                }}
+                            }});
+                            
+                            // Scroll to the first Java line
+                            if (mapping.source_lines.length > 0) {{
+                                const firstJavaLine = javaPanel.querySelector(`[data-line="${mapping.source_lines[0]}"]`);
+                                if (firstJavaLine) {{
+                                    firstJavaLine.scrollIntoView({{ behavior: 'smooth', block: 'center' }});
+                                }}
+                            }}
+                        }}
+                        
+                        // Display detailed loop mapping information
+                        const mappingInfo = `
+                            <div>
+                                <strong>${{mapping.type}}</strong>: ${{mapping.description}}<br>
+                                ${{isJava ? 'Java' : targetTypeName}} loop at line ${{isJava ? mapping.source_lines[0] : mapping.target_lines[0]}} 
+                                → ${{isJava ? targetTypeName : 'Java'}} loop at line ${{isJava ? mapping.target_lines[0] : mapping.source_lines[0]}}
+                                <div style="margin-top: 8px;">
+                                    <strong>Transformation:</strong> ${{mapping.subtype.replace('_', ' ').replace(/\\b\\w/g, l => l.toUpperCase())}}
+                                </div>
+                            </div>
+                        `;
+                        
+                        // Show mapping info
+                        infoPanel.innerHTML = mappingInfo;
+                    }}
+                    
+                    // Call functions to enhance interactivity
+                    enhanceInteractiveMapping();
+                    makeElementsClickable();
+                    
+                    // Call performance highlighting
+                    highlightPerformanceHotspots();
+                }})();
+            </script>
+        </div>
+        """
+        
+        return html
+    
+    def _display_mapping_stats(self) -> None:
+        """Display mapping statistics based on static analysis of the target code"""
+        # Add JavaScript hook to update stats
+        st.markdown(
+            """
+            <script>
+            window.updateMappingStats = function(stats) {
+                window.mappingStats = stats;
+                console.log("Updated mapping stats:", stats);
+            };
+            </script>
+            """,
+            unsafe_allow_html=True
+        )
+        
+        # Analyze target code if available
+        if hasattr(self, 'target_code') and self.target_code:
+            # Create analyzer for the appropriate target type
+            analyzer = GPUPatternAnalyzer(target_type=self.target_type)
+            
+            # Perform static analysis on the target code
+            metrics = analyzer.analyze_code(self.target_code)
+            
+            # Get performance insights
+            insights = analyzer.get_performance_insights(metrics)
+            
+            # Update mapping stats with real metrics
+            self.mapping_stats = {
+                'total_mappings': len(self.semantic_mappings) if hasattr(self, 'semantic_mappings') else 0,
+                'confidence': {
+                    'high': sum(1 for m in self.semantic_mappings if hasattr(m, 'confidence') and m.confidence > 0.7) if hasattr(self, 'semantic_mappings') else 0,
+                    'medium': sum(1 for m in self.semantic_mappings if hasattr(m, 'confidence') and 0.4 <= m.confidence <= 0.7) if hasattr(self, 'semantic_mappings') else 0,
+                    'low': sum(1 for m in self.semantic_mappings if hasattr(m, 'confidence') and m.confidence < 0.4) if hasattr(self, 'semantic_mappings') else 0
+                },
+                'gpu_specific': {
+                    'memory_coalescing': metrics['memory_coalescing'],
+                    'thread_divergence': metrics['thread_operations'],
+                    'memory_type': metrics['memory_types']
+                },
+                'performance_metrics': metrics['performance_metrics'],
+                'insights': insights
+            }
+        else:
+            # Fallback to default values if no target code is available
+            self.mapping_stats = {
+                'total_mappings': 0,
+                'confidence': {'high': 0, 'medium': 0, 'low': 0},
+                'gpu_specific': {
+                    'memory_coalescing': {'coalesced': 0, 'uncoalesced': 0},
+                    'thread_divergence': {'divergent': 0, 'uniform': 0},
+                    'memory_type': {'global': 0, 'shared': 0, 'local': 0, 'constant': 0}
+                },
+                'performance_metrics': {
+                    'divergence_ratio': 0,
+                    'coalescing_ratio': 0,
+                    'compute_memory_ratio': 0,
+                    'total_memory_ops': 0,
+                    'total_compute_ops': 0,
+                },
+                'insights': []
+            }
+        
+        # Display the statistics directly instead of calling super
+        st.markdown("## Code Mapping Statistics", unsafe_allow_html=True)
+        
+        # Basic statistics in three columns
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.metric(
+                label="Total Mappings",
+                value=self.mapping_stats.get('total_mappings', 0)
+            )
+        
+        with col2:
+            high_conf = self.mapping_stats.get('confidence', {}).get('high', 0)
+            st.metric(
+                label="High Confidence Mappings",
+                value=high_conf
+            )
+        
+        with col3:
+            memory_ops = sum(self.mapping_stats.get('gpu_specific', {}).get('memory_type', {}).values())
+            st.metric(
+                label="Memory Operations",
+                value=memory_ops
+            )
+        
+        # GPU-specific statistics
+        st.markdown("### GPU-Specific Metrics", unsafe_allow_html=True)
+        
+        # Memory operations
+        st.markdown("#### Memory Operations", unsafe_allow_html=True)
+        memory_cols = st.columns(4)
+        
+        memory_type = self.mapping_stats.get('gpu_specific', {}).get('memory_type', {})
+        
+        with memory_cols[0]:
+            st.metric(
+                label="Global Memory",
+                value=memory_type.get('global', 0)
+            )
+        
+        with memory_cols[1]:
+            st.metric(
+                label="Shared/Local Memory",
+                value=memory_type.get('shared', 0) + memory_type.get('local', 0)
+            )
+        
+        with memory_cols[2]:
+            st.metric(
+                label="Constant Memory",
+                value=memory_type.get('constant', 0)
+            )
+        
+        with memory_cols[3]:
+            st.metric(
+                label="Total Memory Ops",
+                value=sum(memory_type.values())
+            )
+        
+        # Memory coalescing
+        st.markdown("#### Memory Access Patterns", unsafe_allow_html=True)
+        coalescing_cols = st.columns(2)
+        
+        memory_coalescing = self.mapping_stats.get('gpu_specific', {}).get('memory_coalescing', {})
+        
+        with coalescing_cols[0]:
+            st.metric(
+                label="Coalesced Memory Access",
+                value=memory_coalescing.get('coalesced', 0)
+            )
+        
+        with coalescing_cols[1]:
+            st.metric(
+                label="Uncoalesced Memory Access",
+                value=memory_coalescing.get('uncoalesced', 0)
+            )
+        
+        # Thread divergence
+        st.markdown("#### Thread Operations", unsafe_allow_html=True)
+        thread_cols = st.columns(2)
+        
+        thread_divergence = self.mapping_stats.get('gpu_specific', {}).get('thread_divergence', {})
+        
+        with thread_cols[0]:
+            st.metric(
+                label="Divergent Branches",
+                value=thread_divergence.get('divergent', 0)
+            )
+        
+        with thread_cols[1]:
+            st.metric(
+                label="Uniform Branches",
+                value=thread_divergence.get('uniform', 0)
+            )
+        
+        # Visualizations
+        st.markdown("### Memory and Compute Distribution", unsafe_allow_html=True)
+        
+        # Memory type distribution pie chart
+        memory_data = {
+            'Memory Type': list(memory_type.keys()),
+            'Count': list(memory_type.values())
+        }
+        df_memory = pd.DataFrame(memory_data)
+        
+        if sum(memory_type.values()) > 0:
+            fig1 = px.pie(
+                df_memory, 
+                values='Count', 
+                names='Memory Type',
+                title='Memory Type Distribution',
+                color_discrete_sequence=px.colors.qualitative.Set3
+            )
+            st.plotly_chart(fig1, use_container_width=True)
+            
+        # Compute intensity distribution bar chart
+        if 'performance_metrics' in self.mapping_stats:
+            compute_intensity = {}
+            if 'compute_intensity' in self.mapping_stats:
+                compute_intensity = self.mapping_stats['compute_intensity']
+            else:
+                # Fallback compute data
+                compute_intensity = {
+                    'Arithmetic': self.mapping_stats['performance_metrics'].get('total_compute_ops', 8) * 0.7,
+                    'Logic': self.mapping_stats['performance_metrics'].get('total_compute_ops', 8) * 0.2,
+                    'Special Functions': self.mapping_stats['performance_metrics'].get('total_compute_ops', 8) * 0.1
+                }
+                
+            if sum(compute_intensity.values()) > 0:
+                df_compute = pd.DataFrame({
+                    'Operation Type': list(compute_intensity.keys()),
+                    'Count': list(compute_intensity.values())
+                })
+                
+                fig2 = px.bar(
+                    df_compute,
+                    x='Operation Type',
+                    y='Count',
+                    title='Compute Operation Distribution',
+                    color='Operation Type',
+                    color_discrete_sequence=px.colors.qualitative.Bold
+                )
+                st.plotly_chart(fig2, use_container_width=True)
+                
+        # Performance insights
+        st.markdown("### Performance Insights", unsafe_allow_html=True)
+        
+        # Display insights from pattern analyzer if available
+        if 'insights' in self.mapping_stats and self.mapping_stats['insights']:
+            for insight in self.mapping_stats['insights']:
+                if insight['severity'] == 'high':
+                    st.error(
+                        f"**{insight['title']}**: {insight['description']} \n\n"
+                        f"*Recommendation*: {insight['recommendation']}"
+                    )
+                elif insight['severity'] == 'medium':
+                    st.warning(
+                        f"**{insight['title']}**: {insight['description']} \n\n"
+                        f"*Recommendation*: {insight['recommendation']}"
+                    )
+                else:
+                    st.info(
+                        f"**{insight['title']}**: {insight['description']} \n\n"
+                        f"*Recommendation*: {insight['recommendation']}"
+                    )
+        # Fallback insights based on available metrics
+        else:
+            # Memory coalescing insights
+            if memory_coalescing.get('uncoalesced', 0) > 0:
+                st.warning(
+                    f"Found {memory_coalescing.get('uncoalesced', 0)} uncoalesced memory accesses. "
+                    "Consider reorganizing your data access patterns for better performance."
+                )
+            else:
+                st.success("Good news! All memory accesses appear to be coalesced.")
+            
+            # Thread divergence insights
+            if thread_divergence.get('divergent', 0) > 0:
+                st.warning(
+                    f"Found {thread_divergence.get('divergent', 0)} divergent branches. "
+                    "Consider reorganizing your code to minimize thread divergence."
+                )
+            else:
+                st.success("Good news! No thread divergence detected.")
+                
+            # Compute-to-memory ratio insight
+            if 'performance_metrics' in self.mapping_stats:
+                compute_ratio = self.mapping_stats['performance_metrics'].get('compute_memory_ratio', 0)
+                if compute_ratio > 0:
+                    if compute_ratio < 1.0:
+                        st.warning(
+                            f"Compute-to-memory ratio is low ({compute_ratio:.2f}). "
+                            "This kernel appears to be memory-bound. Consider optimizing memory access patterns."
+                        )
+                    elif compute_ratio > 5.0:
+                        st.success(
+                            f"Compute-to-memory ratio is good ({compute_ratio:.2f}). "
+                            "This kernel appears to be compute-bound, which is typically more efficient."
+                        )
+
+    def display_code_transition(self, java_blocks: List[CodeBlock], 
+                            target_blocks: List[CodeBlock], 
+                            mappings: List[CodeMapping]) -> None:
+        """Display code transition visualization between Java and target blocks"""
+        # Store target code for pattern analysis
+        self.java_code = "\n".join([block.code for block in java_blocks])
+        self.target_code = "\n".join([block.code for block in target_blocks])
+        self.target_type = target_blocks[0].language if target_blocks else "ptx"
+        self.semantic_mappings = mappings
+        
+        # Analyze loop mappings if both codes are available
+        if self.java_code and self.target_code:
+            loop_mapper = LoopPatternMapper(target_type=self.target_type)
+            self.loop_mappings = loop_mapper.analyze_loop_mappings(self.java_code, self.target_code)
+            
+            # Add loop mappings to semantic mappings for visualization
+            self._add_loop_mappings_to_semantic()
+            
+            # Analyze array mappings
+            array_mapper = ArrayMappingAnalyzer(target_type=self.target_type)
+            self.array_mappings = array_mapper.analyze_array_mappings(self.java_code, self.target_code)
+            
+            # Add array mappings to semantic mappings for visualization
+            self._add_array_mappings_to_semantic()
+        else:
+            self.loop_mappings = []
+            self.array_mappings = []
+        
+        # Continue with original implementation
+        super().display_code_transition(java_blocks, target_blocks, mappings)
+        
+        # Display loop mapping analysis if mappings were found
+        if self.loop_mappings:
+            self._display_loop_mapping_analysis()
+        
+        # Display array mapping analysis if mappings were found
+        if self.array_mappings:
+            self._display_array_mapping_analysis()
+    
+    def _add_loop_mappings_to_semantic(self) -> None:
+        """Convert loop mappings to semantic mappings for visualization"""
+        if not hasattr(self, 'loop_mappings') or not self.loop_mappings:
+            return
+            
+        # Create line mappings from loop mappings
+        for loop_mapping in self.loop_mappings:
+            java_loop = loop_mapping['java_loop']
+            target_loop = loop_mapping['target_loop']
+            
+            # Create a mapping object compatible with visualization
+            mapping = {
+                'source_lines': list(range(java_loop['start_line'], java_loop['end_line'] + 1)),
+                'target_lines': list(range(target_loop['start_line'], target_loop['end_line'] + 1)),
+                'type': 'Loop Mapping',
+                'subtype': loop_mapping['transformation_type'],
+                'description': f"{java_loop['type']} loop mapped to {target_loop['type']} with {int(loop_mapping['confidence']*100)}% confidence"
+            }
+            
+            # Add to semantic mappings for visualization
+            if hasattr(self, 'semantic_mappings'):
+                # Convert to LineMapping and add to existing mappings
+                line_mapping = LineMapping(
+                    source_lines=mapping['source_lines'],
+                    target_lines=mapping['target_lines'],
+                    type=mapping['type'],
+                    description=mapping['description']
+                )
+                
+                # Check if we have an existing mapping to add this to
+                found = False
+                for m in self.semantic_mappings:
+                    if hasattr(m, 'line_mapping') and isinstance(m.line_mapping, list):
+                        m.line_mapping.append(line_mapping)
+                        found = True
+                        break
+                
+                # If no existing mapping, create a new one
+                if not found and self.semantic_mappings:
+                    # Try to add to the first mapping
+                    if hasattr(self.semantic_mappings[0], 'line_mapping'):
+                        self.semantic_mappings[0].line_mapping.append(line_mapping)
+    
+    def _display_loop_mapping_analysis(self) -> None:
+        """Display analysis of loop mappings between Java and target code"""
+        if not hasattr(self, 'loop_mappings') or not self.loop_mappings:
+            return
+            
+        st.markdown("## Loop Structure Mapping Analysis", unsafe_allow_html=True)
+        
+        st.markdown(f"Found {len(self.loop_mappings)} loop mappings between Java and {self.target_type.upper()}")
+        
+        # Group mappings by transformation type
+        transformation_types = {}
+        for mapping in self.loop_mappings:
+            trans_type = mapping['transformation_type']
+            if trans_type not in transformation_types:
+                transformation_types[trans_type] = []
+            transformation_types[trans_type].append(mapping)
+        
+        # Display transformation types
+        for trans_type, mappings in sorted(transformation_types.items(), key=lambda x: len(x[1]), reverse=True):
+            friendly_name = trans_type.replace('_', ' ').title()
+            with st.expander(f"{friendly_name} ({len(mappings)})"):
+                for i, mapping in enumerate(mappings):
+                    java_loop = mapping['java_loop']
+                    target_loop = mapping['target_loop']
+                    
+                    st.markdown(f"### Mapping {i+1}: {java_loop['type'].replace('_', ' ').title()} → {self.target_type.upper()} Loop")
+                    
+                    cols = st.columns(2)
+                    with cols[0]:
+                        st.markdown("**Java Loop**")
+                        
+                        if 'code' in java_loop:
+                            st.code(java_loop['code'], language="java")
+                        
+                        if java_loop['type'] == 'for':
+                            st.markdown(f"**Initialization**: `{java_loop.get('init', '')}`")
+                            st.markdown(f"**Condition**: `{java_loop.get('condition', '')}`")
+                            st.markdown(f"**Increment**: `{java_loop.get('increment', '')}`")
+                        elif java_loop['type'] == 'enhanced_for':
+                            st.markdown(f"**Variable**: `{java_loop.get('var_decl', '')}`")
+                            st.markdown(f"**Iterable**: `{java_loop.get('iterable', '')}`")
+                        elif java_loop['type'] in ['while', 'do_while']:
+                            st.markdown(f"**Condition**: `{java_loop.get('condition', '')}`")
+                        
+                        if 'loop_var' in java_loop and java_loop['loop_var']:
+                            st.markdown(f"**Loop Variable**: `{java_loop['loop_var']}`")
+                        
+                        if 'boundary' in java_loop and java_loop['boundary']:
+                            st.markdown(f"**Boundary**: `{java_loop['boundary']}`")
+                        
+                        st.markdown(f"**Is Parallel**: {java_loop.get('is_parallel', False)}")
+                        
+                        if 'access_pattern' in java_loop:
+                            st.markdown(f"**Access Pattern**: {java_loop['access_pattern'].replace('_', ' ').title()}")
+                        
+                        if 'nested_loops' in java_loop and java_loop['nested_loops']:
+                            st.markdown(f"**Contains {len(java_loop['nested_loops'])} nested loops**")
+                    
+                    with cols[1]:
+                        st.markdown(f"**{self.target_type.upper()} Loop**")
+                        
+                        if 'code' in target_loop:
+                            st.code(target_loop['code'], language=self.target_type.lower())
+                        
+                        if self.target_type == 'ptx':
+                            if 'condition' in target_loop and target_loop['condition']:
+                                st.markdown(f"**Condition**: `
