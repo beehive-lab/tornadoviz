@@ -1,4 +1,4 @@
-# TornadoVM Bytecode Analyzer <img src="docs/images/img.png" width="32" height="32" alt="Icon" align="left" style="margin-right: 10px;">
+# TornadoViz <img src="docs/images/img.png" width="32" height="32" alt="Icon" align="left" style="margin-right: 10px;">
 
 A visualization and analysis tool for TornadoVM bytecode execution logs that helps developers understand and optimize their applications running on [TornadoVM](https://github.com/beehive-lab/TornadoVM).
 
