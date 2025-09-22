@@ -66,7 +66,7 @@ class TornadoVisualizer:
         self.memory_objects = {}
         self.dependency_graph = nx.DiGraph()
         self.bytecode_details = []  # For detailed bytecode visualization
-        
+    
     def parse_log(self, log_content: str) -> None:
         """Parse the TornadoVM bytecode log and extract task graphs"""
         # Split the log into sections for each task graph
@@ -88,13 +88,15 @@ class TornadoVisualizer:
     def _parse_task_graph(self, section: str, graph_id: str) -> None:
         """Parse a single task graph section"""
         # Extract device and thread info
-        device_match = re.search(r"PTX -- (.*?) Running in thread:\s+(.*?)$", section, re.MULTILINE)
+        device_match = re.search(r"^\s*(.+?)\s+Running in thread:\s*(.*?)\s*$", section, re.MULTILINE)
         if not device_match:
-            return
-            
-        device = device_match.group(1)
-        thread = device_match.group(2).strip()
-        
+            # If we somehow miss the device line, don't bail; keep parsing ops anyway.
+            device = "Unknown Device"
+            thread = "Unknown Thread"
+        else:
+            device = device_match.group(1).strip()
+            thread = device_match.group(2).strip()
+
         task_graph = TaskGraph(graph_id=graph_id, device=device, thread=thread)
         
         # Parse bytecode operations
