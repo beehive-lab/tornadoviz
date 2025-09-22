@@ -72,19 +72,19 @@ class TornadoVisualizer:
         # Split the log into sections for each task graph
         pattern = r"Interpreter instance running bytecodes for:(.*?)bc:\s+END"
         graph_sections = re.findall(pattern, log_content, re.DOTALL)
-
+        
         for i, section in enumerate(graph_sections):
             graph_name = f"TaskGraph_{i}"
             # Try to extract graph name from task names if possible
             task_match = re.search(r"task ([\w\.]+)\.", section)
             if task_match:
                 graph_name = task_match.group(1)
-
+                
             self._parse_task_graph(section, graph_name)
-
+            
         # Build dependencies after all graphs are parsed
         self._build_dependencies()
- 
+        
     def _parse_task_graph(self, section: str, graph_id: str) -> None:
         """Parse a single task graph section"""
         # Extract device and thread info
