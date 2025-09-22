@@ -1365,22 +1365,23 @@ class TornadoVisualizer:
         
         return fig
 
-def find_in_parents(relative_path: str) -> Optional[Path]:
-    """
-    Walk up from this script's directory and return the first path that exists.
-    Example: find_in_parents("docs/images/basic_view.png")
-    """
-    try:
-        start = Path(__file__).resolve().parent
-    except NameError:
-        # Fallback when __file__ is not available (rare in Streamlit)
-        start = Path.cwd().resolve()
-
-    for folder in [start, *start.parents]:
-        candidate = folder / relative_path
-        if candidate.exists():
-            return candidate
-    return None
+    @staticmethod
+    def find_in_parents(relative_path: str) -> Optional[Path]:
+        """
+        Walk up from this script's directory and return the first path that exists.
+        Example: find_in_parents("docs/images/basic_view.png")
+        """
+        try:
+            start = Path(__file__).resolve().parent
+        except NameError:
+            # Fallback when __file__ is not available (rare in Streamlit)
+            start = Path.cwd().resolve()
+        
+        for folder in [start, *start.parents]:
+            candidate = folder / relative_path
+            if candidate.exists():
+                return candidate
+        return None
 
 # Main Streamlit application
 def main():
@@ -1493,7 +1494,7 @@ def main():
         """)
         
         # Resolve and show example image from docs by walking parent folders
-        img_path = find_in_parents("docs/images/basic_view.png")
+        img_path = TornadoVisualizer.find_in_parents("docs/images/basic_view.png")
         if img_path is not None:
             st.image(
                 str(img_path),
