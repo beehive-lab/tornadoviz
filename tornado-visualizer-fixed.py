@@ -91,8 +91,8 @@ class TornadoVisualizer:
         device_match = re.search(r"^\s*(.+?)\s+Running in thread:\s*(.*?)\s*$", section, re.MULTILINE)
         if not device_match:
             # If we somehow miss the device line, don't bail; keep parsing ops anyway.
-            device = "Unknown device"
-            thread = "unknown"
+            device = "Unknown Device"
+            thread = "Unknown Thread"
         else:
             device = device_match.group(1).strip()
             thread = device_match.group(2).strip()
