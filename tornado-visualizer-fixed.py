@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from typing import List, Dict, Set, Optional, Tuple
 import pandas as pd
 from collections import defaultdict
+from pathlib import Path
 import io
 import base64
 import graphviz
@@ -1364,6 +1365,24 @@ class TornadoVisualizer:
         
         return fig
 
+    @staticmethod
+    def find_in_parents(relative_path: str) -> Optional[Path]:
+        """
+        Walk up from this script's directory and return the first path that exists.
+        Example: find_in_parents("docs/images/basic_view.png")
+        """
+        try:
+            start = Path(__file__).resolve().parent
+        except NameError:
+            # Fallback when __file__ is not available (rare in Streamlit)
+            start = Path.cwd().resolve()
+        
+        for folder in [start, *start.parents]:
+            candidate = folder / relative_path
+            if candidate.exists():
+                return candidate
+        return None
+
 # Main Streamlit application
 def main():
     # Apply custom CSS for dark theme
@@ -1474,10 +1493,16 @@ def main():
         ### Sample Visualization
         """)
         
-        # Show example image from docs
-        st.image("docs/images/basic_view.png", 
+        # Resolve and show example image from docs by walking parent folders
+        img_path = TornadoVisualizer.find_in_parents("docs/images/basic_view.png")
+        if img_path is not None:
+            st.image(
+                str(img_path),
                 caption="Example task graph visualization",
-                use_column_width=True)
+                use_container_width=True
+            )
+        else:
+            st.info("Sample image not found in any parent 'docs/images' folder.")
         return
     
     # Process uploaded file
