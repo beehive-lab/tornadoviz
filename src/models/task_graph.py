@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from typing import List, Dict, Set, Optional
 from collections import defaultdict
 from datetime import datetime
-from .bytecode import BytecodeOperation, OperationType
+from models.bytecode import BytecodeOperation
 
 @dataclass
 class TaskMetrics:
@@ -15,7 +15,7 @@ class TaskMetrics:
     end_time: Optional[datetime] = None
     duration: Optional[float] = None
     device_utilization: float = 0.0
-    operation_counts: Dict[OperationType, int] = field(default_factory=lambda: defaultdict(int))
+    operation_counts: Dict[str, int] = field(default_factory=lambda: defaultdict(int))
 
 @dataclass
 class TaskGraph:

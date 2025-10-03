@@ -1,0 +1,56 @@
+Interpreter instance running bytecodes for:   [NVIDIA CUDA] -- NVIDIA GeForce RTX 3070 Running in thread:  main
+bc:  ALLOC uk.ac.manchester.tornado.api.types.arrays.IntArray@4f25b795 on   [NVIDIA CUDA] -- NVIDIA GeForce RTX 3070 , size=64, batchSize=0
+bc:  TRANSFER_HOST_TO_DEVICE_ONCE  [Object Hash Code=0x4f25b795] uk.ac.manchester.tornado.api.types.arrays.IntArray@4f25b795 on   [NVIDIA CUDA] -- NVIDIA GeForce RTX 3070 , size=64, batchSize=0, offset=0 [event list=-1], [Status: Transferred ]
+bc:  LAUNCH  task firstProcessing.initializeContext - initializeContext on  [NVIDIA CUDA] -- NVIDIA GeForce RTX 3070, numThreadBatch=0, offset=0 [event list=0]
+bc:  ALLOC uk.ac.manchester.tornado.api.types.arrays.IntArray@3a0baae5 on   [NVIDIA CUDA] -- NVIDIA GeForce RTX 3070 , size=64, batchSize=0
+bc:  ALLOC uk.ac.manchester.tornado.api.types.arrays.IntArray@59b38691 on   [NVIDIA CUDA] -- NVIDIA GeForce RTX 3070 , size=64, batchSize=0
+bc:  TRANSFER_HOST_TO_DEVICE_ONCE  [Object Hash Code=0x3a0baae5] uk.ac.manchester.tornado.api.types.arrays.IntArray@3a0baae5 on   [NVIDIA CUDA] -- NVIDIA GeForce RTX 3070 , size=64, batchSize=0, offset=0 [event list=-1], [Status: Transferred ]
+bc:  TRANSFER_HOST_TO_DEVICE_ONCE  [Object Hash Code=0x59b38691] uk.ac.manchester.tornado.api.types.arrays.IntArray@59b38691 on   [NVIDIA CUDA] -- NVIDIA GeForce RTX 3070 , size=64, batchSize=0, offset=0 [event list=-1], [Status: Transferred ]
+bc:  LAUNCH  task firstProcessing.processInitial - processBuffer on  [NVIDIA CUDA] -- NVIDIA GeForce RTX 3070, numThreadBatch=0, offset=0 [event list=1]
+bc:  PERSIST [0x4f25b795] uk.ac.manchester.tornado.api.types.arrays.IntArray@4f25b795 on   [NVIDIA CUDA] -- NVIDIA GeForce RTX 3070
+bc:  DEALLOC [0x3a0baae5] uk.ac.manchester.tornado.api.types.arrays.IntArray@3a0baae5 [Status: Persisted ] on   [NVIDIA CUDA] -- NVIDIA GeForce RTX 3070
+bc:  PERSIST [0x59b38691] uk.ac.manchester.tornado.api.types.arrays.IntArray@59b38691 on   [NVIDIA CUDA] -- NVIDIA GeForce RTX 3070
+bc:  BARRIER  event-list 5
+bc:  END
+
+
+Interpreter instance running bytecodes for:   [NVIDIA CUDA] -- NVIDIA GeForce RTX 3070 Running in thread:  main
+bc:  ON_DEVICE [0x4f25b795] uk.ac.manchester.tornado.api.types.arrays.IntArray@4f25b795 on   [NVIDIA CUDA] -- NVIDIA GeForce RTX 3070
+bc:  LAUNCH  task intermediateProcessing.updateContext - updateContext on  [NVIDIA CUDA] -- NVIDIA GeForce RTX 3070, numThreadBatch=0, offset=0 [event list=0]
+bc:  ALLOC uk.ac.manchester.tornado.api.types.arrays.IntArray@7502291e on   [NVIDIA CUDA] -- NVIDIA GeForce RTX 3070 , size=64, batchSize=0
+bc:  ON_DEVICE [0x59b38691] uk.ac.manchester.tornado.api.types.arrays.IntArray@59b38691 on   [NVIDIA CUDA] -- NVIDIA GeForce RTX 3070
+bc:  TRANSFER_HOST_TO_DEVICE_ONCE  [Object Hash Code=0x7502291e] uk.ac.manchester.tornado.api.types.arrays.IntArray@7502291e on   [NVIDIA CUDA] -- NVIDIA GeForce RTX 3070 , size=64, batchSize=0, offset=0 [event list=-1], [Status: Transferred ]
+bc:  LAUNCH  task intermediateProcessing.processIntermediate - processBuffer on  [NVIDIA CUDA] -- NVIDIA GeForce RTX 3070, numThreadBatch=0, offset=0 [event list=1]
+bc:  PERSIST [0x4f25b795] uk.ac.manchester.tornado.api.types.arrays.IntArray@4f25b795 on   [NVIDIA CUDA] -- NVIDIA GeForce RTX 3070
+bc:  PERSIST [0x59b38691] uk.ac.manchester.tornado.api.types.arrays.IntArray@59b38691 on   [NVIDIA CUDA] -- NVIDIA GeForce RTX 3070
+bc:  PERSIST [0x7502291e] uk.ac.manchester.tornado.api.types.arrays.IntArray@7502291e on   [NVIDIA CUDA] -- NVIDIA GeForce RTX 3070
+bc:  BARRIER  event-list 4
+bc:  END
+
+
+Interpreter instance running bytecodes for:   [NVIDIA CUDA] -- NVIDIA GeForce RTX 3070 Running in thread:  main
+bc:  ON_DEVICE [0x4f25b795] uk.ac.manchester.tornado.api.types.arrays.IntArray@4f25b795 on   [NVIDIA CUDA] -- NVIDIA GeForce RTX 3070
+bc:  LAUNCH  task preFinalProcessing.prepareOutput - prepareOutput on  [NVIDIA CUDA] -- NVIDIA GeForce RTX 3070, numThreadBatch=0, offset=0 [event list=0]
+bc:  ALLOC uk.ac.manchester.tornado.api.types.arrays.IntArray@22bac7bc on   [NVIDIA CUDA] -- NVIDIA GeForce RTX 3070 , size=64, batchSize=0
+bc:  ON_DEVICE [0x7502291e] uk.ac.manchester.tornado.api.types.arrays.IntArray@7502291e on   [NVIDIA CUDA] -- NVIDIA GeForce RTX 3070
+bc:  TRANSFER_HOST_TO_DEVICE_ONCE  [Object Hash Code=0x22bac7bc] uk.ac.manchester.tornado.api.types.arrays.IntArray@22bac7bc on   [NVIDIA CUDA] -- NVIDIA GeForce RTX 3070 , size=64, batchSize=0, offset=0 [event list=-1], [Status: Transferred ]
+bc:  LAUNCH  task preFinalProcessing.processPreFinal - processBuffer on  [NVIDIA CUDA] -- NVIDIA GeForce RTX 3070, numThreadBatch=0, offset=0 [event list=1]
+bc:  PERSIST [0x4f25b795] uk.ac.manchester.tornado.api.types.arrays.IntArray@4f25b795 on   [NVIDIA CUDA] -- NVIDIA GeForce RTX 3070
+bc:  PERSIST [0x7502291e] uk.ac.manchester.tornado.api.types.arrays.IntArray@7502291e on   [NVIDIA CUDA] -- NVIDIA GeForce RTX 3070
+bc:  PERSIST [0x22bac7bc] uk.ac.manchester.tornado.api.types.arrays.IntArray@22bac7bc on   [NVIDIA CUDA] -- NVIDIA GeForce RTX 3070
+bc:  BARRIER  event-list 4
+bc:  END
+
+
+Interpreter instance running bytecodes for:   [NVIDIA CUDA] -- NVIDIA GeForce RTX 3070 Running in thread:  main
+bc:  ON_DEVICE [0x4f25b795] uk.ac.manchester.tornado.api.types.arrays.IntArray@4f25b795 on   [NVIDIA CUDA] -- NVIDIA GeForce RTX 3070
+bc:  LAUNCH  task finalTransfer.finalizeContext - finalizeContext on  [NVIDIA CUDA] -- NVIDIA GeForce RTX 3070, numThreadBatch=0, offset=0 [event list=0]
+bc:  ON_DEVICE [0x22bac7bc] uk.ac.manchester.tornado.api.types.arrays.IntArray@22bac7bc on   [NVIDIA CUDA] -- NVIDIA GeForce RTX 3070
+bc:  LAUNCH  task finalTransfer.empty - forcePropagate on  [NVIDIA CUDA] -- NVIDIA GeForce RTX 3070, numThreadBatch=0, offset=0 [event list=1]
+bc:  TRANSFER_DEVICE_TO_HOST_ALWAYS [0x22bac7bc] uk.ac.manchester.tornado.api.types.arrays.IntArray@22bac7bc on   [NVIDIA CUDA] -- NVIDIA GeForce RTX 3070 , size=64, batchSize=0, offset=0 [event list=2]
+bc:  TRANSFER_DEVICE_TO_HOST_ALWAYS_BLOCKING  [0x4f25b795] uk.ac.manchester.tornado.api.types.arrays.IntArray@4f25b795 on   [NVIDIA CUDA] -- NVIDIA GeForce RTX 3070 , size=64, sizeBatch=0, offset=0 [event list=3]
+bc:  PERSIST [0x4f25b795] uk.ac.manchester.tornado.api.types.arrays.IntArray@4f25b795 on   [NVIDIA CUDA] -- NVIDIA GeForce RTX 3070
+bc:  PERSIST [0x22bac7bc] uk.ac.manchester.tornado.api.types.arrays.IntArray@22bac7bc on   [NVIDIA CUDA] -- NVIDIA GeForce RTX 3070
+bc:  END
+
+

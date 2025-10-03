@@ -1,7 +1,7 @@
 import re
 from typing import Optional, Dict
 from datetime import datetime
-from ..models.bytecode import BytecodeOperation, OperationType
+from models.bytecode import BytecodeOperation, OperationType
 
 class OperationParser:
     """Parser for individual bytecode operations"""
