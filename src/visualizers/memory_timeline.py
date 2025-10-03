@@ -113,9 +113,16 @@ class MemoryTimelineVisualizer:
         for op_type, color in color_map.items():
             df_filtered = df[df["Operation"] == op_type]
             if not df_filtered.empty:
-                # Size mapping for markers - make it proportional to data size but with min/max constraints
-                size_ref = df_filtered["Size"].max() if not df_filtered.empty else 1
-                sizes = df_filtered["Size"].apply(lambda x: max(10, min(25, 10 + (x / size_ref) * 15)))  # Increased marker sizes
+
+                size_ref = df_filtered["Size"].max()
+                size_ref = size_ref if size_ref > 0 else 1
+                sizes = df_filtered["Size"].apply(
+                    lambda x: max(10, min(25, 10 + (x / size_ref) * 15))
+                )
+
+# Size mapping for markers - make it proportional to data size but with min/max constraints
+#                 size_ref = df_filtered["Size"].max() if not df_filtered.empty else 1
+#                 sizes = df_filtered["Size"].apply(lambda x: max(10, min(25, 10 + (x / size_ref) * 15)))  # Increased marker sizes
 
                 fig.add_trace(go.Scatter(
                     x=df_filtered["OperationIndex"],
