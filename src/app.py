@@ -76,7 +76,7 @@ def show_overview(bytecode_dist_viz, performance_analyzer):
     
     # Bytecode distribution
     st.subheader("Bytecode Operation Distribution")
-    st.plotly_chart(bytecode_dist_viz.visualize(), use_container_width=True)
+    st.plotly_chart(bytecode_dist_viz.visualize(), width='stretch')
     
     # Task summary
     st.subheader("Task Summary")
@@ -88,7 +88,7 @@ def show_dependencies(dep_graph_viz):
     
     # Detailed dependency graph
     st.subheader("Detailed Dependency Graph")
-    st.plotly_chart(dep_graph_viz.visualize_detailed(), use_container_width=True)
+    st.plotly_chart(dep_graph_viz.visualize_detailed(), width='stretch')
     
     # Simple dependency graph
     st.subheader("Simple Dependency Graph")
@@ -101,7 +101,7 @@ def show_memory(memory_timeline_viz, object_flow_viz, memory_analyzer):
     
     # Memory timeline
     st.subheader("Memory Timeline")
-    st.plotly_chart(memory_timeline_viz.visualize(), use_container_width=True)
+    st.plotly_chart(memory_timeline_viz.visualize(), width='stretch')
     
     # Object flow
     st.subheader("Object Flow")
@@ -111,7 +111,7 @@ def show_memory(memory_timeline_viz, object_flow_viz, memory_analyzer):
     )
     if selected_object == "All":
         selected_object = None
-    st.plotly_chart(object_flow_viz.visualize(selected_object), use_container_width=True)
+    st.plotly_chart(object_flow_viz.visualize(selected_object), width='stretch')
     
     # Memory usage statistics
     st.subheader("Memory Usage Statistics")

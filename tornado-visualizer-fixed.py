@@ -1499,7 +1499,7 @@ def main():
             st.image(
                 str(img_path),
                 caption="Example task graph visualization",
-                use_container_width=True
+                width='stretch'
             )
         else:
             st.info("Sample image not found in any parent 'docs/images' folder.")
@@ -1622,7 +1622,7 @@ def main():
                     )
                 },
                 hide_index=True,
-                use_container_width=True
+                width='stretch'
             )
             
             # Basic charts in two columns
@@ -1631,12 +1631,12 @@ def main():
             with col1:
                 st.subheader("Memory Usage")
                 mem_chart = visualizer.get_memory_usage_chart()
-                st.plotly_chart(mem_chart, use_container_width=True)
+                st.plotly_chart(mem_chart, width='stretch')
                 
             with col2:
                 st.subheader("Bytecode Distribution")
                 bc_chart = visualizer.get_bytecode_distribution_chart()
-                st.plotly_chart(bc_chart, use_container_width=True)
+                st.plotly_chart(bc_chart, width='stretch')
             
             # Add some space before the dependency graph
             st.write("")
@@ -1803,12 +1803,12 @@ def main():
             # Simplify to a basic chart if the interactive one fails
             try:
                 timeline_fig = visualizer.visualize_memory_timeline_interactive()
-                st.plotly_chart(timeline_fig, use_container_width=True)
+                st.plotly_chart(timeline_fig, width='stretch')
             except Exception as e:
                 st.error(f"Error generating memory timeline: {e}")
                 st.info("Showing simplified memory usage chart instead")
                 mem_chart = visualizer.get_memory_usage_chart()
-                st.plotly_chart(mem_chart, use_container_width=True)
+                st.plotly_chart(mem_chart, width='stretch')
             
             # Object details
             st.subheader("Object Analysis")
@@ -1845,7 +1845,7 @@ def main():
                 if object_options and selected_object:
                     try:
                         flow_fig = visualizer.visualize_object_flow(selected_object)
-                        st.plotly_chart(flow_fig, use_container_width=True)
+                        st.plotly_chart(flow_fig, width='stretch')
                     except Exception as e:
                         st.error(f"Error generating object flow: {e}")
             
@@ -1855,12 +1855,12 @@ def main():
             with col1:
                 st.subheader("Memory Usage Over Time")
                 mem_chart = visualizer.get_memory_usage_chart()
-                st.plotly_chart(mem_chart, use_container_width=True)
+                st.plotly_chart(mem_chart, width='stretch')
             
             with col2:
                 st.subheader("Object Persistence")
                 persistence_chart = visualizer.get_object_persistence_chart()
-                st.plotly_chart(persistence_chart, use_container_width=True)
+                st.plotly_chart(persistence_chart, width='stretch')
         
         elif page == "Bytecode Details":
             st.header("Bytecode Analysis")
@@ -1934,7 +1934,7 @@ def main():
                                 format="%d"
                             ) for col in pivot_df.columns
                         },
-                        use_container_width=True
+                        width='stretch'
                     )
             
             # Bytecode listing with filters
@@ -2007,7 +2007,7 @@ def main():
                             )
                         },
                         hide_index=True,
-                        use_container_width=True
+                        width='stretch'
                     )
                 else:
                     st.info("No bytecodes match the selected filters")
