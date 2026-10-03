@@ -59,22 +59,42 @@ class TaskGraph:
     objects_consumed: Set[str] = field(default_factory=set)  # Objects used but not created
     tasks: List[str] = field(default_factory=list)  # Named tasks in this graph
 
-def add_vlines(fig, lines, dash, color, font_size, position):
+# Above these counts, add_vlines leaves out the lines or their labels: the browser takes
+# minutes to draw thousands of shapes and annotations, and overlapping labels are unreadable.
+MAX_BOUNDARY_LINES = 500
+MAX_BOUNDARY_LABELS = 50
+
+
+def add_vlines(fig, lines, dash, color, font_size, position, what):
     """Adds vertical lines with labels in one layout update.
 
     fig.add_vline copies and re-validates every existing shape and annotation on each
     call, so a loop of n calls is O(n^2): minutes for a few hundred lines, hours for
     the tens of thousands of task boundaries in an LLM's bytecode log.
+
+    Returns a note naming what was left out (what: e.g. "task"), or None.
     """
+    if len(lines) > MAX_BOUNDARY_LINES:
+        return f"{len(lines):,} {what} boundaries not drawn"
+    note = None
+    if len(lines) > MAX_BOUNDARY_LABELS:
+        note = f"{len(lines):,} {what} boundaries drawn without labels"
     top = position == "top"
     shapes = [dict(type="line", xref="x", yref="paper", x0=x, x1=x, y0=0, y1=1,
                    line=dict(dash=dash, color=color, width=2)) for x, _ in lines]
     annotations = [dict(x=x, xref="x", y=1 if top else 0, yref="paper", text=text,
                         showarrow=False, yanchor="bottom" if top else "top",
                         textangle=-15, font=dict(size=font_size, color="white"))
-                   for x, text in lines]
+                   for x, text in lines] if note is None else []
     fig.update_layout(shapes=list(fig.layout.shapes) + shapes,
                       annotations=list(fig.layout.annotations) + annotations)
+    return note
+
+
+def with_notes(title, notes):
+    """Appends add_vlines notes to a chart title as a subtitle."""
+    notes = [n for n in notes if n]
+    return title + ("<br><sup>" + "; ".join(notes) + "</sup>" if notes else "")
 
 
 class TornadoVisualizer:
@@ -687,8 +707,8 @@ class TornadoVisualizer:
         """)
         
         # Add vertical lines for taskgraph boundaries
-        add_vlines(fig, [(b['start'], b['graph_id']) for b in taskgraph_boundaries],
-                   "dash", "rgba(255, 255, 255, 0.3)", 16, "top")
+        timeline_notes = [add_vlines(fig, [(b['start'], b['graph_id']) for b in taskgraph_boundaries],
+                                     "dash", "rgba(255, 255, 255, 0.3)", 16, "top", "task-graph")]
         
         # Add traces for each operation type
         for op_type, color in color_map.items():
@@ -721,7 +741,7 @@ class TornadoVisualizer:
         # Update layout
         fig.update_layout(
             title={
-                'text': "Memory Objects Lifecycle",
+                'text': with_notes("Memory Objects Lifecycle", timeline_notes),
                 'y':0.95,
                 'x':0.5,
                 'xanchor': 'center',
@@ -1183,17 +1203,17 @@ class TornadoVisualizer:
         
         # Add vertical lines for taskgraph boundaries
         max_memory = df["CumulativeMemory"].max()
-        add_vlines(fig, [(b['index'], b['name']) for b in taskgraph_boundaries[1:]],  # Skip first boundary
-                   "dash", "rgba(255, 255, 255, 0.3)", 16, "top")
+        usage_notes = [add_vlines(fig, [(b['index'], b['name']) for b in taskgraph_boundaries[1:]],  # Skip first boundary
+                                  "dash", "rgba(255, 255, 255, 0.3)", 16, "top", "task-graph")]
         
         # Add vertical lines for task boundaries
-        add_vlines(fig, [(b['index'], b['name']) for b in task_boundaries],
-                   "dot", "rgba(255, 255, 255, 0.2)", 14, "bottom")
+        usage_notes.append(add_vlines(fig, [(b['index'], b['name']) for b in task_boundaries],
+                                      "dot", "rgba(255, 255, 255, 0.2)", 14, "bottom", "task"))
         
         # Update layout
         fig.update_layout(
             title={
-                'text': "Memory Usage Over Time",
+                'text': with_notes("Memory Usage Over Time", usage_notes),
                 'y':0.95,
                 'x':0.5,
                 'xanchor': 'center',
@@ -1365,6 +1385,14 @@ class TornadoVisualizer:
         return None
 
 # Main Streamlit application
+@st.cache_resource(max_entries=2, show_spinner="Parsing the bytecode log...")
+def load_visualizer(log_content: str) -> TornadoVisualizer:
+    """Parses a log once; widget clicks rerun the script and reuse the result."""
+    visualizer = TornadoVisualizer()
+    visualizer.parse_log(log_content)
+    return visualizer
+
+
 def main():
     # Apply custom CSS for dark theme
     st.markdown("""
@@ -1488,9 +1516,7 @@ def main():
     
     # Process uploaded file
     try:
-        log_content = uploaded_file.read().decode("utf-8")
-        visualizer = TornadoVisualizer()
-        visualizer.parse_log(log_content)
+        visualizer = load_visualizer(uploaded_file.getvalue().decode("utf-8"))
         
         # Basic metrics
         num_task_graphs = len(visualizer.task_graphs)

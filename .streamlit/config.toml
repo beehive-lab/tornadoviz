@@ -1,0 +1,4 @@
+# The app draws white text, lines and labels on transparent chart backgrounds and dark
+# metric cards, so it needs the dark theme; on the light theme they are unreadable.
+[theme]
+base = "dark"
