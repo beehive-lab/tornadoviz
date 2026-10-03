@@ -59,6 +59,24 @@ class TaskGraph:
     objects_consumed: Set[str] = field(default_factory=set)  # Objects used but not created
     tasks: List[str] = field(default_factory=list)  # Named tasks in this graph
 
+def add_vlines(fig, lines, dash, color, font_size, position):
+    """Adds vertical lines with labels in one layout update.
+
+    fig.add_vline copies and re-validates every existing shape and annotation on each
+    call, so a loop of n calls is O(n^2): minutes for a few hundred lines, hours for
+    the tens of thousands of task boundaries in an LLM's bytecode log.
+    """
+    top = position == "top"
+    shapes = [dict(type="line", xref="x", yref="paper", x0=x, x1=x, y0=0, y1=1,
+                   line=dict(dash=dash, color=color, width=2)) for x, _ in lines]
+    annotations = [dict(x=x, xref="x", y=1 if top else 0, yref="paper", text=text,
+                        showarrow=False, yanchor="bottom" if top else "top",
+                        textangle=-15, font=dict(size=font_size, color="white"))
+                   for x, text in lines]
+    fig.update_layout(shapes=list(fig.layout.shapes) + shapes,
+                      annotations=list(fig.layout.annotations) + annotations)
+
+
 class TornadoVisualizer:
     """Main class for parsing and visualizing TornadoVM bytecode logs"""
     
@@ -669,21 +687,8 @@ class TornadoVisualizer:
         """)
         
         # Add vertical lines for taskgraph boundaries
-        for boundary in taskgraph_boundaries:
-            # Add vertical line at the start of each taskgraph
-            fig.add_vline(
-                x=boundary['start'],
-                line_dash="dash",
-                line_color="rgba(255, 255, 255, 0.3)",
-                line_width=2,  # Made line thicker
-                annotation_text=boundary['graph_id'],
-                annotation_position="top",
-                annotation=dict(
-                    font_size=16,
-                    font_color="white",
-                    textangle=-15  # Reduced rotation angle
-                )
-            )
+        add_vlines(fig, [(b['start'], b['graph_id']) for b in taskgraph_boundaries],
+                   "dash", "rgba(255, 255, 255, 0.3)", 16, "top")
         
         # Add traces for each operation type
         for op_type, color in color_map.items():
@@ -1178,36 +1183,12 @@ class TornadoVisualizer:
         
         # Add vertical lines for taskgraph boundaries
         max_memory = df["CumulativeMemory"].max()
-        for boundary in taskgraph_boundaries[1:]:  # Skip first boundary
-            fig.add_vline(
-                x=boundary['index'],
-                line_dash="dash",
-                line_color="rgba(255, 255, 255, 0.3)",
-                line_width=2,  # Made line thicker
-                annotation_text=boundary['name'],
-                annotation_position="top",
-                annotation=dict(
-                    font_size=16,
-                    font_color="white",
-                    textangle=-15  # Reduced rotation angle
-                )
-            )
+        add_vlines(fig, [(b['index'], b['name']) for b in taskgraph_boundaries[1:]],  # Skip first boundary
+                   "dash", "rgba(255, 255, 255, 0.3)", 16, "top")
         
         # Add vertical lines for task boundaries
-        for boundary in task_boundaries:
-            fig.add_vline(
-                x=boundary['index'],
-                line_dash="dot",
-                line_color="rgba(255, 255, 255, 0.2)",
-                line_width=2,  # Made line thicker
-                annotation_text=boundary['name'],
-                annotation_position="bottom",
-                annotation=dict(
-                    font_size=14,
-                    font_color="white",
-                    textangle=-15  # Reduced rotation angle
-                )
-            )
+        add_vlines(fig, [(b['index'], b['name']) for b in task_boundaries],
+                   "dot", "rgba(255, 255, 255, 0.2)", 14, "bottom")
         
         # Update layout
         fig.update_layout(
